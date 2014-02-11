@@ -3,13 +3,11 @@
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc strict="yes" ?>
 <?rfc toc="no"?>
-<?rfc tocdepth="4"?>
 <?rfc symrefs="yes"?>
 <?rfc sortrefs="yes" ?>
 <?rfc compact="yes" ?>
 <?rfc subcompact="no" ?>
 <rfc category="info" docName="draft-mitchell-grow-remove-private-as-02" ipr="trust200902">
-
   <front>
     <title abbrev="Private AS Removal">Private Autonomous System (AS) Removal Requirements</title>
     <author fullname="Jon Mitchell" initials="J." surname="Mitchell">
@@ -75,19 +73,13 @@
 	     <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in <xref target="RFC2119" />.</t>
      </section>
     <section anchor="basicreqs" title="Basic Requirements">
-	    <t>An implementation that removes Private Use ASNs MUST provide a configuration option to remove them from both the AS_PATH attribute of <xref target="RFC4271" /> and if Four-Octet AS Support <xref target="RFC6793" /> is present, the AS4_PATH attribute of the route.  This configuration option MUST be configurable at the External Border Gateway Protocol (EBGP) peering session level, i.e. per neighbor, and will impact the as path attributes associated with any NLRI sent to the router to which is configured. 
-
-<!-- Well for Junos and XR the more granular would be per neigbour / per SAFI as AFI/SAFI is nested under it. For IOS which is neighbor centric the above is ok. -->
-
-
-		The implementation MUST remove all Private Use ASNs from the as path attributes up to the first non-Private Use AS in the as path, except as dictated by <xref target="loopskip" />.  An implementation MAY remove Private Use ASNs from the entire as path (past the first ASN in the as path attributes), however if it does so, it SHOULD provide an operator configurable option to disable this behavior if desired.  The reason for this behavior is that operators would prefer visibility to which network is leaking Private Use ASNs to the global Internet (or any other network) so the behavior can be corrected directly by the upstream network providing connectivity to the Private Use ASN rather than hiding the issue, which may not fully correct the problem if the downstream network has multiple providers.</t>
+	    <t>An implementation that removes Private Use ASNs MUST provide a configuration option to remove them from both the AS_PATH attribute of <xref target="RFC4271" /> and if Four-Octet AS Support <xref target="RFC6793" /> is present, the AS4_PATH attribute of the route.  This configuration option MUST be configurable at least at the External Border Gateway Protocol (EBGP) peering session level, i.e. per neighbor, and will impact the as path attributes associated with any NLRI sent to the router to which is configured.  The option SHOULD be configurable per AFI/SAFI so that implementations may provide different behaviors per address family.  The implementation MUST remove all Private Use ASNs from the as path attributes up to the first non-Private Use AS in the as path, except as dictated by <xref target="loopskip" />.  An implementation MAY remove Private Use ASNs from the entire as path (past the first ASN in the as path attributes), however if it does so, it SHOULD provide an operator configurable option to disable this behavior if desired.  The reason for this behavior is that operators would prefer visibility to which network is leaking Private Use ASNs to the global Internet (or any other network) so the behavior can be corrected directly by the upstream network providing connectivity to the Private Use ASN rather than hiding the issue, which may not fully correct the problem if the downstream network has multiple providers.</t>
 		
-<!-- Ok. Should we make a statement here about which should be the default behaviour ? I guess the last one only. Also we may summarise all options discussed and provide recommended default in a new section all together -->		
-		
+	    <!-- Ok. Should we make a statement here about which should be the default behaviour ? I guess the last one only. Also we may summarise all options discussed and provide recommended default in a new section all together -->	
+	    <!-- JM - not sure I follow, the default behaviors are specified via the MUST statement, MAY items are optionable	-->
     </section>
     <section anchor="loopskip" title="Loop Prevention when using Private Use ASN Removal">
-	    <t>Implementations of the Private Use ASN removal feature SHOULD provide basic loop prevention to prevent a dual-homed network utilizing a Private Use ASN which connects to a single ASN from receiving an update with it's own (Private) ASN removed that was sent back to the non-originating connection if the ASN to which it is connected has configured the feature towards it's other location. 
-		The implementation should validate that the peer ASN does not appear in the as path prior to removing Private ASNs from the path.  If the peer as does appear, the Private Use removal feature should not manipulate the path.  Otherwise, due to the standard BGP path selection process described in Section 9.1.2.2 of <xref target="RFC4271" /> EBGP routes will be preferred over IBGP routes which may have been from within the AS, so without further attribute manipulation, this can pose a risk of a routing information loop to some networks.  Therefore a router SHOULD NOT remove Private Use ASN's from an AS_PATH or AS4_PATH attribute if it encounters the EBGP AS of the neighbor on which it is configured in the AS_PATH or AS4_PATH that would be removed.</t>
+	    <t>Implementations of the Private Use ASN removal feature SHOULD provide basic loop prevention to prevent a dual-homed network utilizing a Private Use ASN which connects to a single ASN from receiving an update with it's own (Private) ASN removed that was sent back to the non-originating connection if the ASN to which it is connected has configured the feature towards it's other location.  The implementation SHOULD validate that the peer ASN does not appear in the as path prior to removing Private ASNs from the path.  If the peer ASN does appear, the Private Use removal feature should not manipulate the path.  Otherwise, due to the standard BGP path selection process described in Section 9.1.2.2 of <xref target="RFC4271" /> EBGP routes will be preferred over IBGP routes which may have been from within the AS, so without further attribute manipulation, this can pose a risk of a routing information loop to some networks.  Therefore a router SHOULD NOT remove Private Use ASN's from an AS_PATH or AS4_PATH attribute if it encounters the EBGP AS of the neighbor on which it is configured in the AS_PATH or AS4_PATH that would be removed.</t>
 		
 <!-- While I understand the motivation here I think the above is a little bit too strong :) If we want to go there we need to discuss as-override, allowas-in as well as SOO (Site_of_Origin) knobs and tools. Note also that all of them are applicable these days to most AFI/SAFIs not just to 128. Again this also needs to be listed in defaults section.  
 
@@ -96,29 +88,18 @@ In practice there could be data loops in cases where actually EBGP does not win 
 While we are at this you know that some implementations for their own optimizations of update generation vs update replication do not use poison reverse and send back stuff to the clients of RR or RS. Should we sort of separate remote-private-sa in consideration of those two cases .. ie packet coming from EBGP and is chosen as best they readvertised to all members in the update group including the src versus packet coming from IBGP and is send ovber EBGP ? 
 
 --> 
+
+<!-- [JM]  Frankly I included this as it appears to be the default behavior of JunOS and IOS so seemed to radical to suggest getting rid of it, it appears JunOS just added it in 9.X code.  However, it appears in recent implementations, IOS XE has removed this functionality.  Personally, I don't care so much, maybe I should say this is a desireable feature to be able to be disabled?  I'm also aware that there is also tx side loop prevention unrelated to this command this is a different thing altogether.  In that case the implementation does not send the prefix back to the sender or sender's ASN, but in the case I'm describing the prefix is sent but the remove-private-as command is a NOOP.  Do you think it's worth providing a bunch of text on transmit side loop prevention in here seperately from this?  To me it seemed a seperate knob / behavior that is implementation specific but not really related to this feature so I was not planning on describing it in this doc although of course operators should be aware of this implementation gotcha as well! -->
 		
     </section>
     <section anchor="noasrestrict" title="Unnecessary Restrictions on Local or Peer AS">
 	    <t>Implementations of this feature SHOULD NOT have any unnecessary restrictions on Private Use ASN use on either the local ASN of the router that is configuring the feature or the peer ASN that will be receiving the routes.  Both use cases are prevalent in some networks as Private Use ASN removal features have sometimes been used in network mergers or other situations where masking the Private Use ASN's behind a particular AS, which may also be a Private Use ASN, is necessary to avoid conflict with Private Use ASN's behind the upstream network.  In these cases, as long as both the router with the feature configured and the peer have a unique Private ASN from each other, all routes originated from behind their networks containing Private ASN's can be masked to be their ASN.  In the case where the AS where the feature is configured is a Private Use ASN and the router also has policy configured to prepend the local AS to the as path, an implementation SHOULD NOT remove the ASN's that have been locally prepended as per policy configuration, as it is expected that the local ASN cannot be removed from the path with the feature, and prepending is utilized by operators for various traffic engineering scenarios.</t>
-		
-<!-- I think this is a good moment to bring the RPL knob I have proposed in XR long time back of replace-as XXX. The behaviour allows to match any occurance of string "XXX" in AS_PATH and replace each of its place with your real AS number. In particular "XXX" can be regex.
-
-That actually has two properties:
-
-- If we have such knob we may actually not need remove-private-as knob all together as just providing few "XXX" string templates (one of them being private-as) as well as allowing for non private "XXX" strings match seems much more general knob to have. Having it part of BGP outbound or inbound policy also makes its use more flexible. 
-
-- Inserting as many local real AS numbers in place of each replaced string match has two nice properities. It honors BGP TE if someone appended N number of given AS to discourage given path from being selected as the best. It also naturally maintains loop free based on AS_PATH paradigm. 
-
-Regardless of replace-as knob should we have an option to instead of blindly deleting also replace each occurance of deleted private AS with given local real AS number ? 
-
---> 		
-		
-				
+						
     </section>
     <section anchor="asreplace" title="Private ASN Replacement Alternative">
 	    <t>Implementations of this feature MAY include the capability to alternatively replace Private Use ASN's in the AS Path with the local router ASN, thereby maintaining the original as path length when advertising the update to upstream networks.  If this capability exists, it SHOULD NOT be the default behavior of the Private ASN removal feature and therefore MUST be operator configurable.</t>
 		
-<!-- Exactly :) Just wrote about it above ... --> 
+<!-- [JM]  So I'm unclear as your comment was before reading my paragraph on same, is the text I provide sufficient?  Should it be called out as a separate command from remove-private-as.. should I specify all other behaviors of operation must be the same as remove-private-as (this seems wise...).  Btw, there are implementations, see: http://www.cisco.com/en/US/docs/ios-xml/ios/iproute_bgp/configuration/xe-3s/irg-remove-as.html --> 
 		
 		
     </section>
